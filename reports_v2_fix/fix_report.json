@@ -1,0 +1,30 @@
+{
+  "total_rows_before": 4,
+  "total_rows_after": 3,
+  "actions": [
+    {
+      "rule": "orders_duplicate",
+      "table": "orders",
+      "column": null,
+      "action": "drop_duplicates",
+      "affected": 1,
+      "notes": "subset=['order_id']"
+    },
+    {
+      "rule": "orders_amount_range",
+      "table": "orders",
+      "column": "amount",
+      "action": "clip",
+      "affected": 2,
+      "notes": "min=0, max=10000"
+    },
+    {
+      "rule": "orders_status_enum",
+      "table": "orders",
+      "column": "status",
+      "action": "quarantine_invalid_enum",
+      "affected": 1,
+      "notes": "allowed=['pending', 'paid', 'shipped', 'refunded']"
+    }
+  ]
+}

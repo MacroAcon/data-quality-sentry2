@@ -1,0 +1,4 @@
+order_id,amount,updated_at,status,customer_id
+1,10000,2024-01-01,pending,10.0
+2,0,2020-01-01,unknown,12.0
+3,300,2024-02-03,paid,13.0
