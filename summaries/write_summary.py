@@ -1,302 +1,162 @@
 from __future__ import annotations
-import argparse, json
+import argparse, json, os, math, html
 from pathlib import Path
-from jinja2 import Template
+from datetime import datetime
 
-TEMPLATE_STR = r"""<!DOCTYPE html>
-<html lang="en">
+def _read_json(p: Path):
+    return json.loads(p.read_text(encoding="utf-8"))
+
+def _esc(s: str) -> str:
+    return html.escape(s or "")
+
+def main():
+    p = argparse.ArgumentParser(description="Write a delightful HTML report")
+    p.add_argument("--results", type=str, required=True)
+    p.add_argument("--out", type=str, required=True)
+    p.add_argument("--viz", choices=["on","off"], default="on")
+    p.add_argument("--title", type=str, default=None)
+    p.add_argument("--label", type=str, default=None)
+    args = p.parse_args()
+
+    res = _read_json(Path(args.results))
+    checks = res.get("checks", [])
+    summary = res.get("summary", {})
+    passed = summary.get("passed", sum(1 for c in checks if c.get("status")=="pass"))
+    failed = summary.get("failed", sum(1 for c in checks if c.get("status")=="fail"))
+    dataset = summary.get("dataset", "data/sample.csv")
+    mode = summary.get("mode", "plain")
+    stamp = summary.get("timestamp", datetime.now().strftime("%Y%m%d-%H%M"))
+    top_failing = summary.get("top_failing", sorted([c for c in checks if c.get("status")=="fail"], key=lambda c:c.get("count",0), reverse=True)[:5])
+
+    # optional fix info
+    out_dir = Path(args.out).parent
+    fix_report_path = out_dir / "fix_report.json"
+    fixes = None
+    if fix_report_path.exists():
+        try:
+            fixes = _read_json(fix_report_path)
+        except Exception:
+            fixes = None
+
+    page_title = args.title or f"Data Quality Report • {Path(dataset).name} • {mode.upper()}"
+    label = f" • {args.label}" if args.label else ""
+
+    # simple inline style + embedded charts (no CDN)
+    html_out = f"""<!doctype html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Data Quality Sentry — Report</title>
-  <style>
-    :root { --bg:#0b1020; --fg:#e6e9ef; --muted:#99a1b3; --card:#121a34; --card2:#172246; --accent:#7aa2ff; --ok:#2ecc71; --bad:#ff6b6b; --warn:#ffb020; }
-    @media (prefers-color-scheme: light) { :root { --bg:#ffffff; --fg:#1f2937; --muted:#6b7280; --card:#f5f7fb; --card2:#eef2ff; --accent:#335dff; --ok:#1a9d5a; --bad:#d64545; --warn:#b7791f; } }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-    a{color:var(--accent);text-decoration:none}
-    .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
-    header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-    h1{font-size:clamp(1.4rem,2.4vw,1.9rem);margin:0 0 6px 0}
-    .sub{color:var(--muted);font-size:.95rem}
-    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 12px}
-    .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;box-shadow:0 5px 14px rgba(0,0,0,.12)}
-    .kpi{font-size:2rem;font-weight:700;margin-top:6px}
-    .row{display:flex;gap:10px;align-items:center}
-    .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
-    .tools{display:flex;gap:10px;align-items:center;margin:14px 0 20px}
-    input[type="search"]{width:320px;max-width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:var(--card);color:var(--fg)}
-    table{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
-    thead th{position:sticky;top:0;background:var(--card2);text-align:left;padding:12px;font-weight:600;cursor:pointer}
-    tbody td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}
-    .status{font-weight:700}
-    .status.pass{color:var(--ok)}
-    .status.fail{color:var(--bad)}
-    .muted{color:var(--muted)}
-  </style>
+<meta charset="utf-8">
+<title>{_esc(page_title)}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {{
+  --bg:#0b1220; --panel:#111a2b; --muted:#7a8aa0; --text:#e7eef8; --accent:#68d391; --warn:#f6ad55; --danger:#fc8181; --blue:#63b3ed;
+}}
+* {{ box-sizing: border-box; }}
+body {{ margin:0; font-family: Inter, system-ui, Segoe UI, Arial, sans-serif; background:var(--bg); color:var(--text); }}
+.header {{ padding:24px 24px 0; }}
+.h1 {{ font-size:20px; font-weight:700; margin:0 0 8px; }}
+.sub {{ color:var(--muted); font-size:14px; }}
+.container {{ padding: 24px; display:grid; gap:16px; }}
+.grid {{ display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap:16px; }}
+.card {{ background:var(--panel); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:16px; }}
+.kpi .val {{ font-size:28px; font-weight:700; }}
+.kpi .lab {{ color:var(--muted); font-size:12px; }}
+.table {{ width:100%; border-collapse: collapse; font-size:14px; }}
+.table th, .table td {{ padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.06); text-align:left; }}
+.badge {{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; }}
+.badge.pass {{ background:#234f3e; color:#9ae6b4; }}
+.badge.fail {{ background:#54202a; color:#feb2b2; }}
+a, a:visited {{ color:var(--blue); text-decoration:none }}
+.hstack {{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }}
+code.small {{ font-size:12px; color:var(--muted); }}
+.footer {{ color:var(--muted); font-size:12px; padding: 8px 24px 24px; }}
+canvas {{ background:transparent; width:100%; height:280px; }}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>Data Quality Sentry — Report</h1>
-        <div class="sub">Source: {{ results.source }}</div>
-      </div>
-    </header>
+  <div class="header">
+    <div class="h1">{_esc(page_title)}{_esc(label)}</div>
+    <div class="sub">{_esc(Path(dataset).name)} • {_esc(mode.upper())} • {_esc(stamp)}</div>
+  </div>
 
-    <section class="cards">
-      <div class="card"><div>Checks Passed</div><div class="kpi ok">{{ passed }}</div></div>
-      <div class="card"><div>Checks Failed</div><div class="kpi bad">{{ failed }}</div></div>
-      <div class="card"><div>Pass Rate</div><div class="kpi">{% set total = (passed + failed) %}{{ ("%.1f"|format((passed/total*100) if total else 100)) }}%</div></div>
-    </section>
+  <div class="container">
+    <div class="grid">
+      <div class="card kpi"><div class="val">{len(checks)}</div><div class="lab">Total checks</div></div>
+      <div class="card kpi"><div class="val">{passed}</div><div class="lab">Checks passed</div></div>
+      <div class="card kpi"><div class="val">{failed}</div><div class="lab">Checks failed</div></div>
+      {"<div class='card kpi'><div class='val'>"+str(fixes.get('total_rows_before','-'))+"</div><div class='lab'>Rows before</div></div>" if fixes else ""}
+      {"<div class='card kpi'><div class='val'>"+str(fixes.get('total_rows_after','-'))+"</div><div class='lab'>Rows after</div></div>" if fixes else ""}
+      {"<div class='card kpi'><div class='val'>"+str(next((a['affected'] for a in fixes.get('actions',[]) if a.get('action')=='drop_duplicates'), 0))+"</div><div class='lab'>Duplicates dropped</div></div>" if fixes else ""}
+    </div>
 
-    {% if viz_enabled %}
-    <div class="cards" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="grid">
       <div class="card">
-        <h3>Failure Breakdown by Check Type</h3>
-        <svg id="donut" viewBox="0 0 220 160" width="100%" height="160" role="img" aria-label="Failure breakdown donut"></svg>
-        <div class="legend" id="donutLegend"></div>
+        <h3>Pass vs Fail</h3>
+        <canvas id="donut"></canvas>
       </div>
       <div class="card">
-        <h3>Top Offending Columns</h3>
-        <svg id="bars" viewBox="0 0 420 200" width="100%" height="200" role="img" aria-label="Top offending columns"></svg>
+        <h3>Top failing checks</h3>
+        <canvas id="bar"></canvas>
       </div>
     </div>
-    {% endif %}
 
-    <div class="tools">
-      <input id="filter" type="search" placeholder="Filter failures by text…" />
-      <span class="muted">Click column headers to sort</span>
-    </div>
-
-    <table id="checks">
-      <thead>
-        <tr>
-          <th data-k="status">Status</th>
-          <th data-k="name">Rule</th>
-          <th data-k="table">Table</th>
-          <th data-k="column">Column</th>
-          <th data-k="type">Type</th>
-          <th data-k="count">Count</th>
-          <th data-k="sample">Sample</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in checks %}
-        <tr data-row="{{ c.status }} {{ c.table }} {{ c.column }} {{ c.type }}">
-          <td class="status {{ c.status }}">{{ c.status|upper }}</td>
-          <td>{{ c.name or "-" }}</td>
-          <td>{{ c.table or "-" }}</td>
-          <td>{{ c.column or "-" }}</td>
-          <td>{{ c.type or "-" }}</td>
-          <td>{{ c.count or 0 }}</td>
-          <td>
-            {% set fname = failure_samples.get(c.name) %}
-            {% if fname %}
-              <a href="{{ fname }}" download>CSV</a>
-            {% else %}
-              <span class="muted">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    {% if viz_enabled %}
-    <h3>Pass Rate Over Time</h3>
     <div class="card">
-      <svg id="trend" viewBox="0 0 680 160" width="100%" height="160" role="img" aria-label="Pass rate trend"></svg>
-      <div class="muted" style="margin-top:6px;">Latest on the right</div>
-    </div>
-
-    <h3>Null Heatmap (Sample or Real)</h3>
-    <div class="card">
-      <svg id="heatmap" viewBox="0 0 680 200" width="100%" height="200" role="img" aria-label="Null heatmap"></svg>
-    </div>
-    {% endif %}
-
-    {% if fix_report %}
-    <h3>Fixes</h3>
-    <div class="card">
-      <div>Total rows before: {{ fix_report.total_rows_before }}</div>
-      <div>After: {{ fix_report.total_rows_after }}</div>
-      <table style="margin-top:10px;width:100%;border-collapse:collapse;">
-        <thead><tr><th style="text-align:left;padding:8px;">Rule</th><th style="text-align:left;padding:8px;">Table</th><th style="text-align:left;padding:8px;">Column</th><th style="text-align:left;padding:8px;">Action</th><th style="text-align:right;padding:8px;">Affected</th><th style="text-align:left;padding:8px;">Notes</th></tr></thead>
+      <h3>Top failing checks (details)</h3>
+      <table class="table" id="fails">
+        <thead><tr><th>Rule</th><th>Table</th><th>Column</th><th>Type</th><th>Count</th></tr></thead>
         <tbody>
-          {% for a in fix_report.actions %}
-          <tr>
-            <td>{{ a.rule }}</td><td>{{ a.table }}</td><td>{{ a.column or "" }}</td><td>{{ a.action }}</td><td style="text-align:right;">{{ a.affected }}</td><td>{{ a.notes }}</td>
-          </tr>
-          {% endfor %}
+          {"".join(f"<tr><td>{_esc(c.get('name',''))}</td><td>{_esc(c.get('table',''))}</td><td>{_esc(str(c.get('column','')))}</td><td>{_esc(c.get('type',''))}</td><td>{int(c.get('count',0))}</td></tr>" for c in top_failing)}
         </tbody>
       </table>
     </div>
-    {% endif %}
 
-    <div id="tooltip" style="position:fixed;pointer-events:none;background:rgba(0,0,0,.85);color:#fff;padding:6px 8px;border-radius:8px;font-size:12px;opacity:0;transform:translate(-50%, -120%);z-index:9999;"></div>
+    <div class="card">
+      <h3>Failure samples</h3>
+      <div class="sub">Up to 200 sample rows saved per failing rule.</div>
+      <div class="hstack">
+        {"".join(f"<a href='failures/{_esc(v)}'>{_esc(k)}</a>" for k,v in (res.get('failure_samples',{}) or {}).items()) or "<span class='sub'>No samples saved.</span>"}
+      </div>
+    </div>
 
-    <script>
-      // Sort + filter
-      const table = document.getElementById('checks');
-      let sortKey = null, sortDir = 1;
-      if (table) {
-        table.querySelectorAll('th').forEach(th => {
-          th.addEventListener('click', () => {
-            const k = th.dataset.k;
-            const rows = Array.from(table.tBodies[0].rows);
-            if (sortKey === k) { sortDir *= -1; } else { sortKey = k; sortDir = 1; }
-            rows.sort((a,b) => {
-              const idx = Array.from(th.parentNode.children).indexOf(th);
-              const av = a.cells[idx].innerText.trim();
-              const bv = b.cells[idx].innerText.trim();
-              const an = parseFloat(av); const bn = parseFloat(bv);
-              const aVal = isNaN(an) ? av : an; const bVal = isNaN(bn) ? bv : bn;
-              return (aVal > bVal ? 1 : aVal < bVal ? -1 : 0) * sortDir;
-            });
-            rows.forEach(r => table.tBodies[0].appendChild(r));
-          });
-        });
-        const filter = document.getElementById('filter');
-        if (filter) {
-          filter.addEventListener('input', () => {
-            const q = filter.value.toLowerCase();
-            table.tBodies[0].querySelectorAll('tr').forEach(tr => {
-              tr.style.display = tr.dataset.row.includes(q) ? '' : 'none';
-            });
-          });
-        }
-      }
-
-      function elNS(name){ return document.createElementNS('http://www.w3.org/2000/svg', name); }
-      const tooltip = document.getElementById('tooltip');
-      function showTip(x,y,html){ tooltip.style.left=x+'px'; tooltip.style.top=y+'px'; tooltip.innerHTML=html; tooltip.style.opacity=1; }
-      function hideTip(){ tooltip.style.opacity=0; }
-
-      const failures = {{ checks | tojson }};
-      const history = {{ history | tojson if history is defined else '[]' }};
-      const viz_data = {{ results.viz | tojson if results.viz is defined else 'null' }};
-      const VIZ_ENABLED = {{ 'true' if viz_enabled else 'false' }};
-
-      function buildFailuresByType(failures){
-        const byType = {};
-        failures.forEach(c => { if(c.status==='fail'){ const k=c.type||'other'; byType[k]=(byType[k]||0)+(c.count||1); } });
-        const palette = ['#7aa2ff','#ffb020','#ff6b6b','#2ecc71','#a78bfa','#22d3ee'];
-        return Object.entries(byType).map(([label,value],i)=>({label,value,color:palette[i%palette.length]}));
-      }
-      function buildOffenders(failures){
-        const byCol = {}; failures.forEach(c=>{ if(c.status!=='fail') return; const k=(c.table||'')+'.'+(c.column||''); byCol[k]=(byCol[k]||0)+(c.count||1); });
-        return Object.entries(byCol).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,8);
-      }
-      function buildPassRate(history){
-        if(!history||!history.length) return [100];
-        return history.map(h=>{ const t=(h.passed||0)+(h.failed||0); return t?Math.round(100*(h.passed/t)):100; });
-      }
-      function buildNullHeatmap(viz_data, failures){
-        if(viz_data && viz_data.null_heatmap && viz_data.null_heatmap.grid && viz_data.null_heatmap.cols){
-          const rows = viz_data.null_heatmap.grid.length, cols = viz_data.null_heatmap.cols.length;
-          return {rows, cols, cells: viz_data.null_heatmap.grid};
-        }
-        const cols = Array.from(new Set(failures.filter(c=>c.type==='null_rate' && c.status==='fail').map(c=>c.column).filter(Boolean))).slice(0,14);
-        const rows = 10; const cells = Array.from({length:rows}, ()=> cols.map(()=> Math.random()<0.18?1:0));
-        return {rows, cols: cols.length, cells};
-      }
-
-      if (VIZ_ENABLED) {
-        const data = {
-          failuresByType: buildFailuresByType(failures),
-          offenders: buildOffenders(failures),
-          passRate: buildPassRate(history),
-          nullGrid: buildNullHeatmap(viz_data, failures)
-        };
-
-        (function(){ const svg=document.getElementById('donut'); if(!svg) return;
-          const cx=80, cy=80, r=60; const total = data.failuresByType.reduce((s,d)=>s+d.value,0)||1;
-          let a0 = -Math.PI/2;
-          data.failuresByType.forEach(d=>{
-            const a1=a0+2*Math.PI*(d.value/total);
-            const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
-            const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
-            const large=(a1-a0)>Math.PI?1:0;
-            const path=elNS('path');
-            path.setAttribute('d', `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`);
-            path.setAttribute('fill', d.color);
-            path.addEventListener('mousemove', e=>showTip(e.clientX,e.clientY, `${d.label}: <b>${d.value}</b>`));
-            path.addEventListener('mouseleave', hideTip);
-            svg.appendChild(path); a0=a1;
-          });
-          const label=elNS('text'); label.setAttribute('x',cx); label.setAttribute('y',cy+5); label.setAttribute('text-anchor','middle'); label.setAttribute('font-size','14'); label.textContent=`${total} failures`; svg.appendChild(label);
-        })();
-
-        (function(){ const svg=document.getElementById('bars'); if(!svg) return;
-          const width=420, pad=30, barH=22; const max=Math.max(...data.offenders.map(d=>d.value),1);
-          const defs=elNS('defs'); const lg=elNS('linearGradient'); lg.setAttribute('id','grad'); lg.setAttribute('x1','0'); lg.setAttribute('x2','1'); const s1=elNS('stop'); s1.setAttribute('offset','0%'); s1.setAttribute('stop-color','#7aa2ff'); const s2=elNS('stop'); s2.setAttribute('offset','100%'); s2.setAttribute('stop-color','#335dff'); lg.appendChild(s1); lg.appendChild(s2); defs.appendChild(lg); svg.appendChild(defs);
-          data.offenders.forEach((d,i)=>{
-            const y=pad+i*(barH+6); const w=(d.value/max)*(width-160);
-            const rect=elNS('rect'); rect.setAttribute('x',140); rect.setAttribute('y',y); rect.setAttribute('width',Math.max(2,w)); rect.setAttribute('height',barH); rect.setAttribute('rx',6); rect.setAttribute('fill','url(#grad)');
-            rect.addEventListener('mousemove', e=>showTip(e.clientX,e.clientY, `${d.label}: <b>${d.value}</b>`));
-            rect.addEventListener('mouseleave', hideTip);
-            const label=elNS('text'); label.setAttribute('x',8); label.setAttribute('y', y+barH*0.72); label.setAttribute('font-size','12'); label.textContent=d.label;
-            const val=elNS('text'); val.setAttribute('x', 140+Math.max(2,w)+6); val.setAttribute('y', y+barH*0.72); val.setAttribute('font-size','12'); val.textContent=d.value;
-            svg.appendChild(rect); svg.appendChild(label); svg.appendChild(val);
-          });
-        })();
-
-        (function(){ const svg=document.getElementById('trend'); if(!svg) return;
-          const W=680, H=160, pad=24;
-          const xs=data.passRate.map((_,i)=> pad + i*((W-2*pad)/(Math.max(1,data.passRate.length-1))));
-          const ys=data.passRate.map(v=> H-pad-(v/100)*(H-2*pad));
-          const path = xs.map((x,i)=>`${i===0?'M':'L'} ${x} ${ys[i]}`).join(' ');
-          const poly=elNS('path'); poly.setAttribute('d', path); poly.setAttribute('fill','none'); poly.setAttribute('stroke','currentColor'); poly.setAttribute('stroke-width','2'); svg.appendChild(poly);
-          svg.addEventListener('mousemove', e=>{ const i=Math.round((e.offsetX-24)/((W-48)/Math.max(1,data.passRate.length-1))); const v=data.passRate[Math.max(0,Math.min(data.passRate.length-1,i))]; if(v!=null){ showTip(e.clientX,e.clientY, `Pass rate: <b>${v}%</b>`);} }); svg.addEventListener('mouseleave', hideTip);
-        })();
-
-        (function(){ const svg=document.getElementById('heatmap'); if(!svg) return;
-          const rows=data.nullGrid.rows, cols=data.nullGrid.cols; const cellW=18, cellH=12, pad=28;
-          for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ const rect=elNS('rect'); rect.setAttribute('x', pad+c*cellW); rect.setAttribute('y', pad+r*cellH); rect.setAttribute('width',cellW-2); rect.setAttribute('height',cellH-2); rect.setAttribute('rx',2); const isNull=data.nullGrid.cells[r]?.[c]===1; rect.setAttribute('fill', isNull ? '#ff6b6b' : '#2ecc71'); rect.setAttribute('opacity', isNull ? 0.8 : 0.35); svg.appendChild(rect); } }
-        })();
-      }
-    </script>
+    {"<div class='card'><h3>Fixes applied</h3><pre style='white-space:pre-wrap'>"+_esc(json.dumps(fixes, indent=2))+"</pre><div class='hstack'><a href='cleaned.csv'>cleaned.csv</a><a href='quarantine/'>quarantine/</a></div></div>" if fixes else ""}
   </div>
-</body>
-</html>"""
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--results", type=str, required=True)
-    parser.add_argument("--out", type=str, required=True)
-    parser.add_argument("--viz", choices=["on","off"], default="on")
-    args = parser.parse_args()
+  <div class="footer">Generated by Data Quality Sentry</div>
 
-    results_path = Path(args.results)
-    results = json.loads(results_path.read_text(encoding="utf-8"))
+<script>
+(function() {{
+  // Tiny chart lib: inline Canvas drawing for donut and bar (no CDN)
+  function donut(id, parts, colors) {{
+    var c = document.getElementById(id), ctx = c.getContext('2d'), w=c.width, h=c.height, r=Math.min(w,h)/2-10, cx=w/2, cy=h/2;
+    var total = parts.reduce((a,b)=>a+b,0); var ang0=-Math.PI/2;
+    parts.forEach(function(v,i) {{
+      var ang = (v/Math.max(1,total))*2*Math.PI;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,ang0,ang0+ang); ctx.closePath();
+      ctx.fillStyle = colors[i%colors.length]; ctx.fill(); ang0 += ang;
+    }});
+  }}
+  function bar(id, labels, values) {{
+    var c = document.getElementById(id), ctx=c.getContext('2d'), w=c.width, h=c.height;
+    var max = Math.max.apply(null, values.concat([1])); var pad=32; var bw = (w-2*pad)/Math.max(1,labels.length);
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.beginPath(); ctx.moveTo(pad, h-pad); ctx.lineTo(w-pad, h-pad); ctx.stroke();
+    for (var i=0;i<labels.length;i++) {{
+      var x = pad + i*bw + 8; var vh = (values[i]/max)*(h-2*pad); var y=h-pad-vh;
+      ctx.fillStyle = '#63b3ed'; ctx.fillRect(x, y, Math.max(8, bw-16), vh);
+    }}
+  }}
+  // Data from server-side render
+  var passed = {passed}, failed = {failed};
+  donut('donut', [passed, failed], ['#68d391','#fc8181']);
 
-    history_path = results_path.parent / "history.jsonl"
-    history = []
-    if history_path.exists():
-        for line in history_path.read_text(encoding="utf-8").splitlines():
-            try:
-                history.append(json.loads(line))
-            except Exception:
-                pass
-
-    passed = results.get("passed", 0)
-    failed = results.get("failed", 0)
-    checks = results.get("checks", []) or []
-    failure_samples = results.get("failure_samples", {})
-    fix_report = None
-    fix_report_path = results_path.parent / "fix_report.json"
-    if fix_report_path.exists():
-        try:
-            fix_report = json.loads(fix_report_path.read_text(encoding="utf-8"))
-        except Exception:
-            fix_report = None
-
-    template = Template(TEMPLATE_STR)
-    html = template.render(results=results, passed=passed, failed=failed, checks=checks,
-                           failure_samples=failure_samples, history=history, fix_report=fix_report, viz_enabled=(args.viz=='on'))
-    Path(args.out).write_text(html, encoding="utf-8")
-    print(f"Wrote {args.out}")
+  var labels = [{",".join(f"'{_esc(c.get('type',''))}'" for c in top_failing)}];
+  var values = [{",".join(str(int(c.get('count',0))) for c in top_failing)}];
+  bar('bar', labels, values);
+}})();
+</script>
+</body></html>
+"""
+    Path(args.out).write_text(html_out, encoding="utf-8")
 
 if __name__ == "__main__":
     main()
