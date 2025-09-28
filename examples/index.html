@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Data Quality Sentry — Report</title>
+  <style>
+    :root { --bg:#0b1020; --fg:#e6e9ef; --muted:#99a1b3; --card:#121a34; --card2:#172246; --accent:#7aa2ff; --ok:#2ecc71; --bad:#ff6b6b; --warn:#ffb020; }
+    @media (prefers-color-scheme: light) { :root { --bg:#ffffff; --fg:#1f2937; --muted:#6b7280; --card:#f5f7fb; --card2:#eef2ff; --accent:#335dff; --ok:#1a9d5a; --bad:#d64545; --warn:#b7791f; } }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    a{color:var(--accent);text-decoration:none}
+    .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
+    header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    h1{font-size:clamp(1.4rem,2.4vw,1.9rem);margin:0 0 6px 0}
+    .sub{color:var(--muted);font-size:.95rem}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0 12px}
+    .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;box-shadow:0 5px 14px rgba(0,0,0,.12)}
+    .kpi{font-size:2rem;font-weight:700;margin-top:6px}
+    .row{display:flex;gap:10px;align-items:center}
+    .ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+    .tools{display:flex;gap:10px;align-items:center;margin:14px 0 20px}
+    input[type="search"]{width:320px;max-width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:var(--card);color:var(--fg)}
+    table{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+    thead th{position:sticky;top:0;background:var(--card2);text-align:left;padding:12px;font-weight:600;cursor:pointer}
+    tbody td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}
+    .status{font-weight:700}
+    .status.pass{color:var(--ok)}
+    .status.fail{color:var(--bad)}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Data Quality Sentry — Report</h1>
+        <div class="sub">Source: data\sample.csv</div>
+      </div>
+    </header>
+
+    <section class="cards">
+      <div class="card"><div>Checks Passed</div><div class="kpi ok">0</div></div>
+      <div class="card"><div>Checks Failed</div><div class="kpi bad">5</div></div>
+      <div class="card"><div>Pass Rate</div><div class="kpi">0.0%</div></div>
+    </section>
+
+    
+    <div class="cards" style="grid-template-columns: repeat(2, 1fr);">
+      <div class="card">
+        <h3>Failure Breakdown by Check Type</h3>
+        <svg id="donut" viewBox="0 0 220 160" width="100%" height="160" role="img" aria-label="Failure breakdown donut"></svg>
+        <div class="legend" id="donutLegend"></div>
+      </div>
+      <div class="card">
+        <h3>Top Offending Columns</h3>
+        <svg id="bars" viewBox="0 0 420 200" width="100%" height="200" role="img" aria-label="Top offending columns"></svg>
+      </div>
+    </div>
+    
+
+    <div class="tools">
+      <input id="filter" type="search" placeholder="Filter failures by text…" />
+      <span class="muted">Click column headers to sort</span>
+    </div>
+
+    <table id="checks">
+      <thead>
+        <tr>
+          <th data-k="status">Status</th>
+          <th data-k="name">Rule</th>
+          <th data-k="table">Table</th>
+          <th data-k="column">Column</th>
+          <th data-k="type">Type</th>
+          <th data-k="count">Count</th>
+          <th data-k="sample">Sample</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-row="fail orders None duplicate">
+          <td class="status fail">FAIL</td>
+          <td>orders.duplicate</td>
+          <td>orders</td>
+          <td>-</td>
+          <td>duplicate</td>
+          <td>1</td>
+          <td>
+            
+            
+              <a href="orders_duplicate.csv" download>CSV</a>
+            
+          </td>
+        </tr>
+        
+        <tr data-row="fail orders amount range">
+          <td class="status fail">FAIL</td>
+          <td>orders.amount.range</td>
+          <td>orders</td>
+          <td>amount</td>
+          <td>range</td>
+          <td>2</td>
+          <td>
+            
+            
+              <a href="orders_amount_range.csv" download>CSV</a>
+            
+          </td>
+        </tr>
+        
+        <tr data-row="fail orders updated_at freshness">
+          <td class="status fail">FAIL</td>
+          <td>orders.updated_at.freshness</td>
+          <td>orders</td>
+          <td>updated_at</td>
+          <td>freshness</td>
+          <td>4</td>
+          <td>
+            
+            
+              <a href="orders_updated_at_freshness.csv" download>CSV</a>
+            
+          </td>
+        </tr>
+        
+        <tr data-row="fail orders status enum">
+          <td class="status fail">FAIL</td>
+          <td>orders.status.enum</td>
+          <td>orders</td>
+          <td>status</td>
+          <td>enum</td>
+          <td>1</td>
+          <td>
+            
+            
+              <a href="orders_status_enum.csv" download>CSV</a>
+            
+          </td>
+        </tr>
+        
+        <tr data-row="fail orders customer_id null_rate">
+          <td class="status fail">FAIL</td>
+          <td>orders.customer_id.null_rate</td>
+          <td>orders</td>
+          <td>customer_id</td>
+          <td>null_rate</td>
+          <td>1</td>
+          <td>
+            
+            
+              <a href="orders_customer_id_null_rate.csv" download>CSV</a>
+            
+          </td>
+        </tr>
+        
+      </tbody>
+    </table>
+
+    
+    <h3>Pass Rate Over Time</h3>
+    <div class="card">
+      <svg id="trend" viewBox="0 0 680 160" width="100%" height="160" role="img" aria-label="Pass rate trend"></svg>
+      <div class="muted" style="margin-top:6px;">Latest on the right</div>
+    </div>
+
+    <h3>Null Heatmap (Sample or Real)</h3>
+    <div class="card">
+      <svg id="heatmap" viewBox="0 0 680 200" width="100%" height="200" role="img" aria-label="Null heatmap"></svg>
+    </div>
+    
+
+    
+
+    <div id="tooltip" style="position:fixed;pointer-events:none;background:rgba(0,0,0,.85);color:#fff;padding:6px 8px;border-radius:8px;font-size:12px;opacity:0;transform:translate(-50%, -120%);z-index:9999;"></div>
+
+    <script>
+      // Sort + filter
+      const table = document.getElementById('checks');
+      let sortKey = null, sortDir = 1;
+      if (table) {
+        table.querySelectorAll('th').forEach(th => {
+          th.addEventListener('click', () => {
+            const k = th.dataset.k;
+            const rows = Array.from(table.tBodies[0].rows);
+            if (sortKey === k) { sortDir *= -1; } else { sortKey = k; sortDir = 1; }
+            rows.sort((a,b) => {
+              const idx = Array.from(th.parentNode.children).indexOf(th);
+              const av = a.cells[idx].innerText.trim();
+              const bv = b.cells[idx].innerText.trim();
+              const an = parseFloat(av); const bn = parseFloat(bv);
+              const aVal = isNaN(an) ? av : an; const bVal = isNaN(bn) ? bv : bn;
+              return (aVal > bVal ? 1 : aVal < bVal ? -1 : 0) * sortDir;
+            });
+            rows.forEach(r => table.tBodies[0].appendChild(r));
+          });
+        });
+        const filter = document.getElementById('filter');
+        if (filter) {
+          filter.addEventListener('input', () => {
+            const q = filter.value.toLowerCase();
+            table.tBodies[0].querySelectorAll('tr').forEach(tr => {
+              tr.style.display = tr.dataset.row.includes(q) ? '' : 'none';
+            });
+          });
+        }
+      }
+
+      function elNS(name){ return document.createElementNS('http://www.w3.org/2000/svg', name); }
+      const tooltip = document.getElementById('tooltip');
+      function showTip(x,y,html){ tooltip.style.left=x+'px'; tooltip.style.top=y+'px'; tooltip.innerHTML=html; tooltip.style.opacity=1; }
+      function hideTip(){ tooltip.style.opacity=0; }
+
+      const failures = [{"column": null, "count": 1, "name": "orders.duplicate", "params": {"subset": ["order_id"]}, "status": "fail", "table": "orders", "type": "duplicate"}, {"column": "amount", "count": 2, "name": "orders.amount.range", "params": {"max": 10000, "min": 0}, "status": "fail", "table": "orders", "type": "range"}, {"column": "updated_at", "count": 4, "name": "orders.updated_at.freshness", "params": {"max_age_days": 365, "parse_format": null}, "status": "fail", "table": "orders", "type": "freshness"}, {"column": "status", "count": 1, "name": "orders.status.enum", "params": {"allowed": ["pending", "paid", "shipped", "refunded"]}, "status": "fail", "table": "orders", "type": "enum"}, {"column": "customer_id", "count": 1, "name": "orders.customer_id.null_rate", "params": {"max_null_frac": 0.0, "max_nulls": 0}, "status": "fail", "table": "orders", "type": "null_rate"}];
+      const history = [];
+      const viz_data = {"null_heatmap": {"cols": ["customer_id"], "grid": [[0], [1], [0], [0]]}};
+      const VIZ_ENABLED = true;
+
+      function buildFailuresByType(failures){
+        const byType = {};
+        failures.forEach(c => { if(c.status==='fail'){ const k=c.type||'other'; byType[k]=(byType[k]||0)+(c.count||1); } });
+        const palette = ['#7aa2ff','#ffb020','#ff6b6b','#2ecc71','#a78bfa','#22d3ee'];
+        return Object.entries(byType).map(([label,value],i)=>({label,value,color:palette[i%palette.length]}));
+      }
+      function buildOffenders(failures){
+        const byCol = {}; failures.forEach(c=>{ if(c.status!=='fail') return; const k=(c.table||'')+'.'+(c.column||''); byCol[k]=(byCol[k]||0)+(c.count||1); });
+        return Object.entries(byCol).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,8);
+      }
+      function buildPassRate(history){
+        if(!history||!history.length) return [100];
+        return history.map(h=>{ const t=(h.passed||0)+(h.failed||0); return t?Math.round(100*(h.passed/t)):100; });
+      }
+      function buildNullHeatmap(viz_data, failures){
+        if(viz_data && viz_data.null_heatmap && viz_data.null_heatmap.grid && viz_data.null_heatmap.cols){
+          const rows = viz_data.null_heatmap.grid.length, cols = viz_data.null_heatmap.cols.length;
+          return {rows, cols, cells: viz_data.null_heatmap.grid};
+        }
+        const cols = Array.from(new Set(failures.filter(c=>c.type==='null_rate' && c.status==='fail').map(c=>c.column).filter(Boolean))).slice(0,14);
+        const rows = 10; const cells = Array.from({length:rows}, ()=> cols.map(()=> Math.random()<0.18?1:0));
+        return {rows, cols: cols.length, cells};
+      }
+
+      if (VIZ_ENABLED) {
+        const data = {
+          failuresByType: buildFailuresByType(failures),
+          offenders: buildOffenders(failures),
+          passRate: buildPassRate(history),
+          nullGrid: buildNullHeatmap(viz_data, failures)
+        };
+
+        (function(){ const svg=document.getElementById('donut'); if(!svg) return;
+          const cx=80, cy=80, r=60; const total = data.failuresByType.reduce((s,d)=>s+d.value,0)||1;
+          let a0 = -Math.PI/2;
+          data.failuresByType.forEach(d=>{
+            const a1=a0+2*Math.PI*(d.value/total);
+            const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0);
+            const x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+            const large=(a1-a0)>Math.PI?1:0;
+            const path=elNS('path');
+            path.setAttribute('d', `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`);
+            path.setAttribute('fill', d.color);
+            path.addEventListener('mousemove', e=>showTip(e.clientX,e.clientY, `${d.label}: <b>${d.value}</b>`));
+            path.addEventListener('mouseleave', hideTip);
+            svg.appendChild(path); a0=a1;
+          });
+          const label=elNS('text'); label.setAttribute('x',cx); label.setAttribute('y',cy+5); label.setAttribute('text-anchor','middle'); label.setAttribute('font-size','14'); label.textContent=`${total} failures`; svg.appendChild(label);
+        })();
+
+        (function(){ const svg=document.getElementById('bars'); if(!svg) return;
+          const width=420, pad=30, barH=22; const max=Math.max(...data.offenders.map(d=>d.value),1);
+          const defs=elNS('defs'); const lg=elNS('linearGradient'); lg.setAttribute('id','grad'); lg.setAttribute('x1','0'); lg.setAttribute('x2','1'); const s1=elNS('stop'); s1.setAttribute('offset','0%'); s1.setAttribute('stop-color','#7aa2ff'); const s2=elNS('stop'); s2.setAttribute('offset','100%'); s2.setAttribute('stop-color','#335dff'); lg.appendChild(s1); lg.appendChild(s2); defs.appendChild(lg); svg.appendChild(defs);
+          data.offenders.forEach((d,i)=>{
+            const y=pad+i*(barH+6); const w=(d.value/max)*(width-160);
+            const rect=elNS('rect'); rect.setAttribute('x',140); rect.setAttribute('y',y); rect.setAttribute('width',Math.max(2,w)); rect.setAttribute('height',barH); rect.setAttribute('rx',6); rect.setAttribute('fill','url(#grad)');
+            rect.addEventListener('mousemove', e=>showTip(e.clientX,e.clientY, `${d.label}: <b>${d.value}</b>`));
+            rect.addEventListener('mouseleave', hideTip);
+            const label=elNS('text'); label.setAttribute('x',8); label.setAttribute('y', y+barH*0.72); label.setAttribute('font-size','12'); label.textContent=d.label;
+            const val=elNS('text'); val.setAttribute('x', 140+Math.max(2,w)+6); val.setAttribute('y', y+barH*0.72); val.setAttribute('font-size','12'); val.textContent=d.value;
+            svg.appendChild(rect); svg.appendChild(label); svg.appendChild(val);
+          });
+        })();
+
+        (function(){ const svg=document.getElementById('trend'); if(!svg) return;
+          const W=680, H=160, pad=24;
+          const xs=data.passRate.map((_,i)=> pad + i*((W-2*pad)/(Math.max(1,data.passRate.length-1))));
+          const ys=data.passRate.map(v=> H-pad-(v/100)*(H-2*pad));
+          const path = xs.map((x,i)=>`${i===0?'M':'L'} ${x} ${ys[i]}`).join(' ');
+          const poly=elNS('path'); poly.setAttribute('d', path); poly.setAttribute('fill','none'); poly.setAttribute('stroke','currentColor'); poly.setAttribute('stroke-width','2'); svg.appendChild(poly);
+          svg.addEventListener('mousemove', e=>{ const i=Math.round((e.offsetX-24)/((W-48)/Math.max(1,data.passRate.length-1))); const v=data.passRate[Math.max(0,Math.min(data.passRate.length-1,i))]; if(v!=null){ showTip(e.clientX,e.clientY, `Pass rate: <b>${v}%</b>`);} }); svg.addEventListener('mouseleave', hideTip);
+        })();
+
+        (function(){ const svg=document.getElementById('heatmap'); if(!svg) return;
+          const rows=data.nullGrid.rows, cols=data.nullGrid.cols; const cellW=18, cellH=12, pad=28;
+          for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ const rect=elNS('rect'); rect.setAttribute('x', pad+c*cellW); rect.setAttribute('y', pad+r*cellH); rect.setAttribute('width',cellW-2); rect.setAttribute('height',cellH-2); rect.setAttribute('rx',2); const isNull=data.nullGrid.cells[r]?.[c]===1; rect.setAttribute('fill', isNull ? '#ff6b6b' : '#2ecc71'); rect.setAttribute('opacity', isNull ? 0.8 : 0.35); svg.appendChild(rect); } }
+        })();
+      }
+    </script>
+  </div>
+</body>
+</html>
