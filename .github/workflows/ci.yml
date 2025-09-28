@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build-test:
@@ -12,20 +12,24 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install project and dependencies
+
+      # 👇 This is the step you were asking about
+      - name: Upgrade pip tooling
         run: |
-          python -m pip install --upgrade pip
-          # Install project in editable mode with dev extras
-          pip install -e .
-          pip install pytest ruff
-      - name: Lint with ruff
+          python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install package (editable) + dev deps
         run: |
-          ruff .
-      - name: Run tests
+          pip install -e .[dev]
+
+      - name: Lint & Test
         run: |
-          pytest -q
+          ruff check .
+          pytest
