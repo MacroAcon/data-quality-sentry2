@@ -85,7 +85,7 @@ tables:
 
 See `checks/rules.yml` for the default configuration used by the sample dataset.
 
-## 📊 Output artefacts
+## 📊 Output artifacts
 
 DQS writes all artefacts into the directory specified by `--out`. After a run you will find:
 
@@ -95,15 +95,15 @@ DQS writes all artefacts into the directory specified by `--out`. After a run yo
 - `quarantine/` – rows dropped or values clipped during safe fixes.
 - `cleaned.csv` – the cleaned dataset (only when `--fix` is used and changes were applied).
 
-## 🧪 Skills demonstrated
+## 🧩 How it’s built
 
-This project showcases:
+The project combines familiar data tooling with modern developer workflows:
 
-- **Data engineering** with Pandas, YAML and Python 3.10+.
-- **CLI design** using `argparse` with sensible defaults and guardrails.
-- **HTML & data visualisation** with Jinja2 and vanilla JavaScript.
-- **Packaging** with `pyproject.toml` and a console script entry point.
-- **CI/CD** via GitHub Actions and quality gates (linting, typing, unit tests).
+- Validation rules expressed in **YAML**, executed with **Pandas**.
+- A straightforward **CLI** with sensible defaults and guardrails.
+- Reports rendered as interactive **HTML** using Jinja2 templates.
+- A structured **packaging setup** (`pyproject.toml`) for local or editable installs.
+- Continuous integration through **GitHub Actions**.
 
 ## 🤝 Contributing
 
