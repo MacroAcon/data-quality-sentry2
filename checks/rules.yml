@@ -1,0 +1,24 @@
+tables:
+  - name: orders
+    checks:
+      - type: duplicate
+        subset: [order_id]
+    columns:
+      - name: amount
+        checks:
+          - type: range
+            min: 0
+            max: 10000
+      - name: updated_at
+        checks:
+          - type: freshness
+            max_age_days: 365
+      - name: status
+        checks:
+          - type: enum
+            allowed: [pending, paid, shipped, refunded]
+      - name: customer_id
+        checks:
+          - type: null_rate
+            max_nulls: 0
+            max_null_frac: 0.0
