@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![CI](https://github.com/MacroAcon/data-quality-sentry2/actions/workflows/ci.yml/badge.svg?branch=main)
 
-Data Quality Sentry (DQS) is a lightweight framework that scans tabular data, flags issues against a YAML‑configured set of rules, generates beautiful HTML reports, and can optionally **fix** problems safely. It uses familiar tools—Pandas, YAML and Jinja2—to give you immediate insight into the health of your data without heavyweight infrastructure.
+Data Quality Sentry (DQS) is a lightweight framework that scans tabular data, flags issues against a YAML‑configured set of rules, generates beautiful HTML reports, and can optionally **fix** problems safely. It uses familiar tools - Pandas, YAML and Jinja2 - to give you immediate insight into the health of your data without heavyweight infrastructure.
 
 ## ✨ Features
 
