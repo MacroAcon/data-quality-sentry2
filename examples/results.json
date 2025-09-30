@@ -1,0 +1,100 @@
+{
+  "source": "data\\sample.csv",
+  "passed": 0,
+  "failed": 5,
+  "checks": [
+    {
+      "name": "orders.duplicate",
+      "table": "orders",
+      "column": null,
+      "type": "duplicate",
+      "status": "fail",
+      "count": 1,
+      "params": {
+        "subset": [
+          "order_id"
+        ]
+      }
+    },
+    {
+      "name": "orders.amount.range",
+      "table": "orders",
+      "column": "amount",
+      "type": "range",
+      "status": "fail",
+      "count": 2,
+      "params": {
+        "min": 0,
+        "max": 10000
+      }
+    },
+    {
+      "name": "orders.updated_at.freshness",
+      "table": "orders",
+      "column": "updated_at",
+      "type": "freshness",
+      "status": "fail",
+      "count": 4,
+      "params": {
+        "max_age_days": 365,
+        "parse_format": null
+      }
+    },
+    {
+      "name": "orders.status.enum",
+      "table": "orders",
+      "column": "status",
+      "type": "enum",
+      "status": "fail",
+      "count": 1,
+      "params": {
+        "allowed": [
+          "pending",
+          "paid",
+          "shipped",
+          "refunded"
+        ]
+      }
+    },
+    {
+      "name": "orders.customer_id.null_rate",
+      "table": "orders",
+      "column": "customer_id",
+      "type": "null_rate",
+      "status": "fail",
+      "count": 1,
+      "params": {
+        "max_nulls": 0,
+        "max_null_frac": 0.0
+      }
+    }
+  ],
+  "failure_samples": {
+    "orders.duplicate": "orders_duplicate.csv",
+    "orders.amount.range": "orders_amount_range.csv",
+    "orders.updated_at.freshness": "orders_updated_at_freshness.csv",
+    "orders.status.enum": "orders_status_enum.csv",
+    "orders.customer_id.null_rate": "orders_customer_id_null_rate.csv"
+  },
+  "viz": {
+    "null_heatmap": {
+      "cols": [
+        "customer_id"
+      ],
+      "grid": [
+        [
+          0
+        ],
+        [
+          1
+        ],
+        [
+          0
+        ],
+        [
+          0
+        ]
+      ]
+    }
+  }
+}
